@@ -1,0 +1,74 @@
+#version 330 core
+
+// construct input layout for the corresponding attributes
+// (vertexPosition_modelspace, vertexNormal_modelspace, vertexUV)
+layout(location = 0) in vec3 vertexPosition_modelspace;
+layout(location = 1) in vec3 vertexNormal_modelspace;
+layout(location = 2) in vec2 vertexUV;
+// skinning variables
+//layout(location = 3) in float vertexBoneIndex;
+
+// Output variables (position_modelspace, normal_modelspace and UV coordinates), 
+// that will be interpolated for each fragment
+out vec3 vertex_position_modelspace;
+out vec3 vertex_normal_modelspace;
+out vec2 vertex_UV;
+out vec4 ShadowCoord;
+
+// uniforms (P, V, M)
+uniform mat4 P;
+uniform mat4 V;
+uniform mat4 M;
+uniform mat4 DepthBiasMVP;
+
+// Task 2.1b: skinning variables
+const int BONE_TRANSFORMATIONS = 20; // something big enough, but not too big
+uniform int useSkinning = 0;  // use skinning or not
+uniform mat4 boneTransformations[BONE_TRANSFORMATIONS]; // bone transformations polloi pinakes mat4 (20 pinakes)
+
+
+
+void main()
+{
+	
+	// Task 2.1c: for the skinning make sure to transform both coordinates
+    // and normals of the vertex as defined in local space (model space)
+	vec4 vertexPositionNew_modelspace = vec4(vertexPosition_modelspace, 1.0);
+	vec4 vertexNormalNew_modelspace = vec4(vertexNormal_modelspace, 0.0);
+
+	vec4 vertexPositionNew_worldspace = M * vertexPositionNew_modelspace;
+
+	
+	int vertexBoneIndex=14;
+	if (useSkinning == 1) {
+		if (int(round(vertexPositionNew_worldspace.y))>=15){
+			vertexBoneIndex=14;
+		}
+		else {
+			vertexBoneIndex=int(round(vertexPositionNew_worldspace.y));
+		}
+
+		vertexNormalNew_modelspace = boneTransformations[vertexBoneIndex] * vertexNormalNew_modelspace;
+		vertexPositionNew_worldspace = boneTransformations[vertexBoneIndex] * vertexPositionNew_worldspace;
+		vertexPositionNew_modelspace = inverse(M) * vertexPositionNew_worldspace;
+
+    }
+	
+    
+
+    // Task 3.1: propagate the position of the vertex to fragment shader
+    vertex_position_modelspace = vertexPositionNew_modelspace.xyz;
+
+    // Task 3.2: propagate the normal of the vertex to fragment shader
+    vertex_normal_modelspace = vertexNormalNew_modelspace.xyz; 
+    
+
+	ShadowCoord = DepthBiasMVP * vertexPositionNew_modelspace; // vertexPositionNew_modelspace ;//vec4(vertexPositionNew_modelspace,1);
+
+
+	// Output position of the vertex, in clip space : MVP * position
+    gl_Position =  P * V * M * vertexPositionNew_modelspace;
+
+    // Task 5.2: propagate the UV coordinates   
+    vertex_UV = vertexUV;
+}

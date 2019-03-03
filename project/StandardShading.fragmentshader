@@ -1,0 +1,92 @@
+#version 330 core
+
+// interpolated values from the vertex shaders (vertex_position_modelspace, 
+// vertex_normal_modelspace and vertex_UV coordinates)
+in vec3 vertex_position_modelspace;
+in vec3 vertex_normal_modelspace;
+in vec2 vertex_UV;
+in vec4 ShadowCoord;
+
+// uniform variables (lightPosition_worldspace, V, M)
+uniform vec3 light_position_worldspace;
+uniform mat4 V;
+uniform mat4 M;
+
+uniform vec3 Ka;
+uniform vec3 Kd;
+uniform vec3 Ks;
+uniform float Ns;
+
+// Task 5.3: define uniform variables for the texture coordinates
+// (diffuseColorSampler, specularColorSampler)
+uniform sampler2D diffuseColorSampler;
+uniform sampler2D specularColorSampler;
+uniform sampler2DShadow shadowMap;
+
+
+// output data
+out vec4 fragment_color;
+
+void main()
+{
+
+
+    // Task 2.1: model light; specular (Ls), diffuse (Ld) and ambient (La) color
+
+	vec3 La=(vec3(1,1,1));
+	vec3 Ld=(vec3(1,1,1));
+	vec3 Ls=(vec3(1,1,1));
+
+    // assign material properties from the texture maps
+	/*
+    Ks = vec3(texture(specularColorSampler, vertex_UV).rgb);
+	
+    Kd = vec3(texture(diffuseColorSampler, vertex_UV).rgb);
+    Ka = vec3(0.1, 0.1, 0.1);
+    Ns = 10;
+	*/
+
+    // model ambient intensity (Ia)
+
+	//SOS PRIN
+	//vec3 Ia = La * Ka;
+	vec3 Ia = La * Ka * vec3(texture(diffuseColorSampler, vertex_UV).rgb);
+
+	vec3 light_position_cameraspace = vec3(V * vec4(light_position_worldspace,1));
+
+	vec3 vertex_position_cameraspace = vec3(V * M * vec4(vertex_position_modelspace,1)).xyz;
+
+	vec3 N = normalize((V * M * vec4(vertex_normal_modelspace,0)).xyz);
+
+    // Task 3.4: calculate distance to light and normalized direction (L) in camera space 
+
+	vec3 L=normalize(light_position_cameraspace - vertex_position_cameraspace);
+
+	float cosTheta = dot(L,N);
+	vec3 Id= Ld * vec3(texture(diffuseColorSampler, vertex_UV).rgb) * clamp(cosTheta, 0, 1); //max()
+    
+    //  model specular intensity
+    //  compute reflexion direction (R) in camera space
+
+	vec3 R = -L + 2 * dot(L,N) * N;	//perfect reflection
+
+    // compute surface to viewer direction (E) in camera space
+
+	vec3 E = normalize( -vertex_position_cameraspace);
+
+
+	float cosAlpha = dot(E,R);
+
+	vec3 Is= Ls * Ks * pow(clamp(cosAlpha, 0, 1),Ns);
+
+	
+	//float bias = 0.05;
+
+
+	
+	float bias = max(0.1 * (1.0 - dot(vertex_normal_modelspace, -vec3(0.5f, 3, 1))), 0.0005);
+	float visibility = ShadowCoord.z-bias < texture(shadowMap, vec3(ShadowCoord.xy, (ShadowCoord.z)/ShadowCoord.w))  ? 1.0 : 0.0;
+	fragment_color = vec4(Ia + Id * visibility + Is * visibility,1);
+
+
+}

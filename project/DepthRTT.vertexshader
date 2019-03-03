@@ -1,0 +1,39 @@
+#version 330 core
+
+// Input vertex data, different for all executions of this shader.
+layout(location = 0) in vec3 vertexPosition_modelspace;
+
+// Values that stay constant for the whole mesh.
+uniform mat4 depthMVP;
+uniform mat4 MVP;
+uniform mat4 M;
+
+const int BONE_TRANSFORMATIONS = 20; // something big enough, but not too big
+uniform int useSkinning = 0;  // use skinning or not
+uniform mat4 boneTransformations[BONE_TRANSFORMATIONS]; // bone transformations polloi pinakes mat4 (20 pinakes)
+
+
+void main(){
+
+	vec4 vertexPositionNew_modelspace = vec4(vertexPosition_modelspace, 1.0);
+	vec4 vertexPositionNew_worldspace = M * vertexPositionNew_modelspace;
+
+	
+	int vertexBoneIndex=14;
+	if (useSkinning == 1) {
+		if (int(round(vertexPositionNew_worldspace.y))>=15){
+			vertexBoneIndex=14;
+		}
+		else {
+			vertexBoneIndex=int(round(vertexPositionNew_worldspace.y));
+		}
+
+		vertexPositionNew_worldspace = boneTransformations[vertexBoneIndex] * vertexPositionNew_worldspace;
+		vertexPositionNew_modelspace = inverse(M) * vertexPositionNew_worldspace;
+
+    }
+
+
+
+	gl_Position =  depthMVP * M * vertexPositionNew_modelspace; //vec4(vertexPosition_modelspace,1);
+}
